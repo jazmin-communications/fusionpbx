@@ -17,57 +17,59 @@
 
 	The Initial Developer of the Original Code is
 	Mark J Crane <markjcrane@fusionpbx.com>
-	Copyright (C) 2008-2015
+	Copyright (C) 2008-2019
 	All Rights Reserved.
 
 	Contributor(s):
 	Mark J Crane <markjcrane@fusionpbx.com>
 */
-include "root.php";
-require_once "resources/require.php";
-require_once "resources/check_auth.php";
-if (permission_exists('email_view')) {
-	//access granted
-}
-else {
-	echo "access denied";
-	exit;
-}
+
+//includes
+	include "root.php";
+	require_once "resources/require.php";
+	require_once "resources/check_auth.php";
+
+//check permissions
+	if (permission_exists('email_log_view')) {
+		//access granted
+	}
+	else {
+		echo "access denied";
+		exit;
+	}
 
 //add multi-lingual support
 	$language = new text;
 	$text = $language->get();
 
 //get email
-	$email_uuid = check_str($_REQUEST["id"]);
+	$email_log_uuid = check_str($_REQUEST["id"]);
 
 	$msg_found = false;
 
-	if ($email_uuid != '') {
-		$sql = "select * from v_emails ";
-		$sql .= "where email_uuid = '".$email_uuid."' ";
+	if (is_uuid($email_log_uuid)) {
+		$sql = "select * from v_email_logs ";
+		$sql .= "where email_log_uuid = '".$email_log_uuid."' ";
 		$sql .= "and domain_uuid = '".$domain_uuid."' ";
 		$prep_statement = $db->prepare(check_sql($sql));
 		$prep_statement->execute();
-		$result = $prep_statement->fetchAll(PDO::FETCH_NAMED);
-		$result_count = count($result);
+		$email_logs = $prep_statement->fetchAll(PDO::FETCH_NAMED);
 		unset ($prep_statement, $sql);
 
-		if ($result_count > 0) {
-			foreach($result as $row) {
+		if (is_array($email_logs)) {
+			foreach($email_logs as $row) {
 				$sent = $row['sent_date'];
 				$type = $row['type'];
 				$status = $row['status'];
 				$email = $row['email'];
 				$msg_found = true;
-				break;
 			}
 		}
 	}
 
 	if (!$msg_found) {
 		message::add($text['message-invalid_email']);
-		header("Location: emails.php");
+		header("Location: email_logs.php");
 		exit;
 	}
 
@@ -122,7 +124,7 @@ else {
 	}
 	else {
 		message::add($text['message-decoding_error'].(($mime->error != '') ? ': '.htmlspecialchars($mime->error) : null));
-		header("Location: emails.php");
+		header("Location: email_logs.php");
 		exit;
 	}
 
@@ -133,16 +135,16 @@ else {
 //show content
 	echo "<table width='100%' border='0' cellpadding='0' cellspacing='0'>\n";
 	echo "	<tr>";
-	echo "		<td valign='top' align='left' nowrap>";
+	echo "		<td valign='top' align='left' nowrap='nowrap'>";
 	echo "			<b>".$text['header-view_email']."</b>\n";
 	echo "		</td>";
-	echo "		<td valign='top' align='right' nowrap>";
-	echo "			<input type='button' class='btn' alt='".$text['button-back']."' onclick=\"document.location.href='emails.php';\" value='".$text['button-back']."'>";
+	echo "		<td valign='top' align='right' nowrap='nowrap'>";
+	echo "			<input type='button' class='btn' alt='".$text['button-back']."' onclick=\"document.location.href='email_logs.php';\" value='".$text['button-back']."'>";
 	if (permission_exists('email_download')) {
-		echo "		<input type='button' class='btn' alt='".$text['button-download']."' onclick=\"document.location.href='emails.php?id=".$email_uuid."&a=download';\" value='".$text['button-download']."'>";
+		echo "		<input type='button' class='btn' alt='".$text['button-download']."' onclick=\"document.location.href='email_logs.php?id=".$email_log_uuid."&a=download';\" value='".$text['button-download']."'>";
 	}
 	if (permission_exists('email_resend')) {
-		echo "		<input type='button' class='btn' alt='".$text['button-resend']."' onclick=\"document.location.href='emails.php?id=".$email_uuid."&a=resend';\" value='".$text['button-resend']."'>";
+		echo "		<input type='button' class='btn' alt='".$text['button-resend']."' onclick=\"document.location.href='email_logs.php?id=".$email_log_uuid."&a=resend';\" value='".$text['button-resend']."'>";
 	}
 	echo "		</td>";
 	echo "	</tr>";
@@ -152,37 +154,37 @@ else {
 	echo "<table width='100%' border='0' cellpadding='0' cellspacing='0'>\n";
 
 	echo "<tr>\n";
-	echo "<td width='30%' class='vncell' valign='top' align='left' nowrap>".$text['label-sent']."</td>\n";
+	echo "<td width='30%' class='vncell' valign='top' align='left' nowrap='nowrap'>".$text['label-sent']."</td>\n";
 	echo "<td width='70%' class='vtable' align='left'>".$sent."</td>\n";
 	echo "</tr>\n";
 
 	echo "<tr>\n";
-	echo "<td class='vncell' valign='top' align='left' nowrap>".$text['label-type']."</td>\n";
+	echo "<td class='vncell' valign='top' align='left' nowrap='nowrap'>".$text['label-type']."</td>\n";
 	echo "<td class='vtable' align='left'>".$text['label-type_'.$type]."</td>\n";
 	echo "</tr>\n";
 
 	echo "<tr>\n";
-	echo "<td class='vncell' valign='top' align='left' nowrap>".$text['label-status']."</td>\n";
+	echo "<td class='vncell' valign='top' align='left' nowrap='nowrap'>".$text['label-status']."</td>\n";
 	echo "<td class='vtable' align='left'>".$text['label-status_'.$status]."</td>\n";
 	echo "</tr>\n";
 
 	echo "<tr>\n";
-	echo "<td class='vncell' valign='top' align='left' nowrap>".$text['label-from']."</td>\n";
+	echo "<td class='vncell' valign='top' align='left' nowrap='nowrap'>".$text['label-from']."</td>\n";
 	echo "<td class='vtable' align='left'>".$from."</td>\n";
 	echo "</tr>\n";
 
 	echo "<tr>\n";
-	echo "<td class='vncell' valign='top' align='left' nowrap>".$text['label-to']."</td>\n";
+	echo "<td class='vncell' valign='top' align='left' nowrap='nowrap'>".$text['label-to']."</td>\n";
 	echo "<td class='vtable' align='left'>".$to."</td>\n";
 	echo "</tr>\n";
 
 	echo "<tr>\n";
-	echo "<td class='vncell' valign='top' align='left' nowrap>".$text['label-subject']."</td>\n";
+	echo "<td class='vncell' valign='top' align='left' nowrap='nowrap'>".$text['label-subject']."</td>\n";
 	echo "<td class='vtable' align='left'>".$subject."</td>\n";
 	echo "</tr>\n";
 
 	echo "<tr>\n";
-	echo "<td class='vncell' valign='top' align='left' nowrap>".$text['label-message']."</td>\n";
+	echo "<td class='vncell' valign='top' align='left' nowrap='nowrap'>".$text['label-message']."</td>\n";
 	echo "<td class='vtable' align='left'>";
 	echo "	<iframe id='msg_display' width='100%' height='250' scrolling='auto' cellspacing='0' style='border: 1px solid #c5d1e5; overflow: scroll;'></iframe>\n";
 	echo "	<textarea id='msg' width='1' height='1' style='width: 1px; height: 1px; display: none;'>".$body."</textarea>\n";
@@ -195,7 +197,7 @@ else {
 	echo "</tr>\n";
 
 	echo "<tr>\n";
-	echo "<td class='vncell' valign='top' align='left' nowrap>".$text['label-attachment']."</td>\n";
+	echo "<td class='vncell' valign='top' align='left' nowrap='nowrap'>".$text['label-attachment']."</td>\n";
 	echo "<td class='vtable' align='left'>".$file_name." (".round($file_size/1024,2)." KB)</td>\n";
 	echo "</tr>\n";
 
@@ -204,4 +206,5 @@ else {
 
 //include the footer
 	require_once "resources/footer.php";
+
 ?>

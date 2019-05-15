@@ -15,7 +15,7 @@
 
 --	The Initial Developer of the Original Code is
 --	Mark J Crane <markjcrane@fusionpbx.com>
---	Portions created by the Initial Developer are Copyright (C) 2014
+--	Portions created by the Initial Developer are Copyright (C) 2014-2019
 --	the Initial Developer. All Rights Reserved.
 
 
@@ -47,29 +47,23 @@
 --set the cache key
 	key = "app:dialplan:outbound:is_local:" .. destination_number .. "@" .. domain_name;
 
---set the outbound caller id
-	if (outbound_caller_id_name ~= nil) then
-		session:execute("set", "caller_id_name="..outbound_caller_id_name);
-		session:execute("set", "effective_caller_id_name="..outbound_caller_id_name);
-	end
-	if (outbound_caller_id_number ~= nil) then
-		session:execute("set", "caller_id_number="..outbound_caller_id_number);
-		session:execute("set", "effective_caller_id_number="..outbound_caller_id_number);
-	end
-
 --get the destination number
 	value, err = cache.get(key);
 	if (err == 'NOT FOUND') then
+
 		--connect to the database
 		local Database = require "resources.functions.database";
 		local dbh = Database.new('system');
 
 		--select data from the database
-		local sql = "SELECT destination_number, destination_context "
-		sql = sql .. "FROM v_destinations "
-		sql = sql .. "WHERE destination_number = :destination_number "
-		sql = sql .. "AND destination_type = 'inbound' "
-		sql = sql .. "AND destination_enabled = 'true' "
+		local sql = "SELECT destination_number, destination_context ";
+		sql = sql .. "FROM v_destinations ";
+		sql = sql .. "WHERE ( ";
+		sql = sql .. "	destination_number = :destination_number ";
+		sql = sql .. "	OR destination_prefix || destination_number = :destination_number ";
+		sql = sql .. ") ";
+		sql = sql .. "AND destination_type = 'inbound' ";
+		sql = sql .. "AND destination_enabled = 'true' ";
 		local params = {destination_number = destination_number};
 		if (debug["sql"]) then
 			freeswitch.consoleLog("notice", "SQL:" .. sql .. "; params: " .. json.encode(params) .. "\n");
@@ -93,6 +87,16 @@
 			--log the result
 				freeswitch.consoleLog("notice", "[app:dialplan:outbound:is_local] " .. row.destination_number .. " XML " .. destination_context .. " source: database\n");
 
+			--set the outbound caller id
+				if (outbound_caller_id_name ~= nil) then
+					session:execute("set", "caller_id_name="..outbound_caller_id_name);
+					session:execute("set", "effective_caller_id_name="..outbound_caller_id_name);
+				end
+				if (outbound_caller_id_number ~= nil) then
+					session:execute("set", "caller_id_number="..outbound_caller_id_number);
+					session:execute("set", "effective_caller_id_number="..outbound_caller_id_number);
+				end
+
 			--transfer the call
 				session:transfer(row.destination_number, "XML", row.destination_context);
 		end);
@@ -113,6 +117,16 @@
 				key = f[1];
 				value = f[2];
 				var[key] = value;
+			end
+
+		--set the outbound caller id
+			if (outbound_caller_id_name ~= nil) then
+				session:execute("set", "caller_id_name="..outbound_caller_id_name);
+				session:execute("set", "effective_caller_id_name="..outbound_caller_id_name);
+			end
+			if (outbound_caller_id_number ~= nil) then
+				session:execute("set", "caller_id_number="..outbound_caller_id_number);
+				session:execute("set", "effective_caller_id_number="..outbound_caller_id_number);
 			end
 
 		--send to the console

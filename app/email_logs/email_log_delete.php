@@ -17,37 +17,41 @@
 
 	The Initial Developer of the Original Code is
 	Mark J Crane <markjcrane@fusionpbx.com>
-	Copyright (C) 2008-2015
+	Copyright (C) 2008-2019
 	All Rights Reserved.
 
 	Contributor(s):
 	Mark J Crane <markjcrane@fusionpbx.com>
 */
-include "root.php";
-require_once "resources/require.php";
-require_once "resources/check_auth.php";
-if (permission_exists('email_delete')) {
-	//access granted
-}
-else {
-	echo "access denied";
-	exit;
-}
+
+//includes
+	include "root.php";
+	require_once "resources/require.php";
+	require_once "resources/check_auth.php";
+
+//check permissions
+	if (permission_exists('email_log_delete')) {
+		//access granted
+	}
+	else {
+		echo "access denied";
+		exit;
+	}
 
 //add multi-lingual support
 	$language = new text;
 	$text = $language->get();
 
 //get posted values, if any
-	$email_uuid = $_REQUEST["id"];
+	$email_log_uuid = $_REQUEST["id"];
 
-	if ($email_uuid != '') {
-		$sql = "delete from v_emails ";
-		$sql .= "where email_uuid = '".$email_uuid."' ";
-		if (permission_exists('emails_all') && $_REQUEST['showall'] == 'true') {
-			$sql .= "";
+	if (is_uuid($email_log_uuid)) {
+		$sql = "delete from v_email_logs ";
+		$sql .= "where email_log_uuid = '".$email_log_uuid."' ";
+		if (permission_exists('email_log_all') && $_REQUEST['showall'] == 'true') {
+			$sql .= '';
 		} else {
-			$sql .= "and domain_uuid = '".$domain_uuid."' ";
+			$sql .= "and domain_uuid = '".$_SESSION['domain_uuid']."' ";
 		}
 		$prep_statement = $db->prepare(check_sql($sql));
 		$prep_statement->execute();
@@ -56,6 +60,6 @@ else {
 	}
 
 //redirect user
-	header("Location: emails.php");
+	header("Location: email_logs.php");
 
 ?>

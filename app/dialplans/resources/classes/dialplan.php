@@ -17,7 +17,7 @@
 
 	The Initial Developer of the Original Code is
 	Mark J Crane <markjcrane@fusionpbx.com>
-	Copyright (C) 2010-2016
+	Copyright (C) 2010-2019
 	All Rights Reserved.
 
 	Contributor(s):
@@ -400,6 +400,9 @@ include "root.php";
 													if (strlen($row2['@attributes']['inline']) > 0) {
 														$this->dialplan_detail_inline = $row2['@attributes']['inline'];
 													}
+													else {
+														$this->dialplan_detail_inline = null;
+													}
 													$this->dialplan_detail_group = $group;
 													$this->dialplan_detail_order = $order;
 													$this->dialplan_detail_add();
@@ -411,6 +414,12 @@ include "root.php";
 													$this->dialplan_detail_tag = 'anti-action';
 													$this->dialplan_detail_type = $row2['@attributes']['application'];
 													$this->dialplan_detail_data = $row2['@attributes']['data'];
+													if (strlen($row2['@attributes']['inline']) > 0) {
+														$this->dialplan_detail_inline = $row2['@attributes']['inline'];
+													}
+													else {
+														$this->dialplan_detail_inline = null;
+													}
 													$this->dialplan_detail_group = $group;
 													$this->dialplan_detail_order = $order;
 													$this->dialplan_detail_add();

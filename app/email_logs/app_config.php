@@ -1,7 +1,7 @@
 <?php
 
 	//application details
-		$apps[$x]['name'] = "Emails";
+		$apps[$x]['name'] = "Email Logs";
 		$apps[$x]['uuid'] = "bd64f590-9a24-468d-951f-6639ac728694";
 		$apps[$x]['category'] = "Switch";
 		$apps[$x]['subcategory'] = "";
@@ -30,31 +30,39 @@
 
 	//permission details
 		$y=0;
-		$apps[$x]['permissions'][$y]['name'] = "email_view";
+		$apps[$x]['permissions'][$y]['name'] = "email_log_add";
+		$apps[$x]['permissions'][$y]['groups'][] = "superadmin";
+		$y++;
+		$apps[$x]['permissions'][$y]['name'] = "email_log_edit";
+		//$apps[$x]['permissions'][$y]['groups'][] = "superadmin";
+		$y++;
+		$apps[$x]['permissions'][$y]['name'] = "email_log_delete";
 		$apps[$x]['permissions'][$y]['groups'][] = "admin";
 		$apps[$x]['permissions'][$y]['groups'][] = "superadmin";
 		$y++;
-		$apps[$x]['permissions'][$y]['name'] = "email_delete";
+		$apps[$x]['permissions'][$y]['name'] = "email_log_view";
 		$apps[$x]['permissions'][$y]['groups'][] = "admin";
 		$apps[$x]['permissions'][$y]['groups'][] = "superadmin";
 		$y++;
-		$apps[$x]['permissions'][$y]['name'] = "email_download";
+		$apps[$x]['permissions'][$y]['name'] = "email_log_download";
 		$apps[$x]['permissions'][$y]['groups'][] = "admin";
 		$apps[$x]['permissions'][$y]['groups'][] = "superadmin";
 		$y++;
-		$apps[$x]['permissions'][$y]['name'] = "email_resend";
+		$apps[$x]['permissions'][$y]['name'] = "email_log_resend";
 		$apps[$x]['permissions'][$y]['groups'][] = "admin";
 		$apps[$x]['permissions'][$y]['groups'][] = "superadmin";
 		$y++;
-		$apps[$x]['permissions'][$y]['name'] = "emails_all";
+		$apps[$x]['permissions'][$y]['name'] = "email_log_all";
 		$apps[$x]['permissions'][$y]['groups'][] = "superadmin";
 
 	//schema details
 		$y=0;
-		$apps[$x]['db'][$y]['table']['name'] = "v_emails";
+		$apps[$x]['db'][$y]['table']['name']['text'] = "v_email_logs";
+		$apps[$x]['db'][$y]['table']['name']['deprecated'] = "v_emails";
 		$apps[$x]['db'][$y]['table']['parent'] = "";
 		$z=0;
-		$apps[$x]['db'][$y]['fields'][$z]['name'] = "email_uuid";
+		$apps[$x]['db'][$y]['fields'][$z]['name']['text'] = "email_log_uuid";
+		$apps[$x]['db'][$y]['fields'][$z]['name']['deprecated'] = "email_uuid";
 		$apps[$x]['db'][$y]['fields'][$z]['type']['pgsql'] = "uuid";
 		$apps[$x]['db'][$y]['fields'][$z]['type']['sqlite'] = "text";
 		$apps[$x]['db'][$y]['fields'][$z]['type']['mysql'] = "char(36)";
