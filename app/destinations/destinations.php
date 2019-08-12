@@ -65,69 +65,58 @@
 	}
 
 //get variables used to control the order
-	$order_by = check_str($_GET["order_by"]);
-	$order = check_str($_GET["order"]);
+	$order_by = $_GET["order_by"];
+	$order = $_GET["order"];
 
 //set the type
-	if ($_GET['type'] == 'inbound') {
-		$destination_type = 'inbound';
-	}
-	elseif ($_GET['type'] == 'outbound') {
-		$destination_type = 'outbound';
-	}
-	elseif ($_GET['type'] == 'local') {
-		$destination_type = 'local';
-	}
-	else {
-		$destination_type = 'inbound';
+	switch ($_GET['type']) {
+		case 'inbound': $destination_type = 'inbound'; break;
+		case 'outbound': $destination_type = 'outbound'; break;
+		case 'local': $destination_type = 'local'; break;
+		default: $destination_type = 'inbound';
 	}
 
 //add the search term
-	$search = strtolower(check_str($_GET["search"]));
+	$search = strtolower($_GET["search"]);
 	if (strlen($search) > 0) {
 		$sql_search = " (";
-		$sql_search .= "lower(destination_type) like '%".$search."%' ";
-		$sql_search .= "or lower(destination_number) like '%".$search."%' ";
-		$sql_search .= "or lower(destination_context) like '%".$search."%' ";
-		$sql_search .= "or lower(destination_accountcode) like '%".$search."%' ";
+		$sql_search .= "lower(destination_type) like :search ";
+		$sql_search .= "or lower(destination_number) like :search ";
+		$sql_search .= "or lower(destination_context) like :search ";
+		$sql_search .= "or lower(destination_accountcode) like :search ";
 		if (permission_exists('outbound_caller_id_select')) {
-			$sql_search .= "or lower(destination_caller_id_name) like '%".$search."%' ";
-			$sql_search .= "or destination_caller_id_number like '%".$search."%' ";
+			$sql_search .= "or lower(destination_caller_id_name) like :search ";
+			$sql_search .= "or destination_caller_id_number like :search ";
 		}
-		$sql_search .= "or lower(destination_enabled) like '%".$search."%' ";
-		$sql_search .= "or lower(destination_description) like '%".$search."%' ";
+		$sql_search .= "or lower(destination_enabled) like :search ";
+		$sql_search .= "or lower(destination_description) like :search ";
+		$sql_search .= "or lower(destination_data) like :search ";
 		$sql_search .= ") ";
 	}
 
-//additional includes
-	require_once "resources/header.php";
-	require_once "resources/paging.php";
-
-//prepare to page the results
-	$sql = "select count(destination_uuid) as num_rows from v_destinations ";
-	$sql .= "where destination_type = '".$destination_type."' ";
+//common sql where
+	$sql_where = "where destination_type = :destination_type ";
 	if ($_GET['show'] == "all" && permission_exists('destination_all')) {
 		//show all
-	} else {
-		$sql .= "and (domain_uuid = '".$domain_uuid."' or domain_uuid is null) ";
+	}
+	else {
+		$sql_where .= "and (domain_uuid = :domain_uuid or domain_uuid is null) ";
+		$parameters['domain_uuid'] = $domain_uuid;
 	}
 	if (isset($sql_search)) {
-			$sql .= "and ".$sql_search;
+		$sql_where .= "and ".$sql_search;
+		$parameters['search'] = '%'.$search.'%';
 	}
-	if (strlen($order_by)> 0) { $sql .= "order by $order_by $order "; }
-	$prep_statement = $db->prepare($sql);
-	if ($prep_statement) {
-		$prep_statement->execute();
-		$row = $prep_statement->fetch(PDO::FETCH_ASSOC);
-		if ($row['num_rows'] > 0) {
-			$num_rows = $row['num_rows'];
-		}
-		else {
-			$num_rows = '0';
-		}
-	}
+	$parameters['destination_type'] = $destination_type;
 
 //prepare to page the results
+	$sql = "select count(destination_uuid) from v_destinations ";
+	$sql .= $sql_where;
+	$database = new database;
+	$num_rows = $database->select($sql, $parameters, 'column');
+
+//prepare to page the results
+	require_once "resources/paging.php";
 	$rows_per_page = ($_SESSION['domain']['paging']['numeric'] != '') ? $_SESSION['domain']['paging']['numeric'] : 50;
 	$param = "&search=".escape($search);
 	if ($_GET['show'] == "all" && permission_exists('destination_all')) {
@@ -139,23 +128,12 @@
 	$offset = $rows_per_page * $page;
 
 //get the list
-	$sql = "select * from v_destinations ";
-	$sql .= "where destination_type = '".$destination_type."' ";
-	if ($_GET['show'] == "all" && permission_exists('destination_all')) {
-		//show all
-	} else {
-		$sql .= "and (domain_uuid = '".$domain_uuid."' or domain_uuid is null) ";
-	}
-	if (isset($sql_search)) {
-		$sql .= "and ".$sql_search;
-	}
-	$sql .= "and destination_type = '".$destination_type."' ";
-	if (strlen($order_by)> 0) { $sql .= "order by $order_by $order "; }
-	$sql .= "limit $rows_per_page offset $offset ";
-	$prep_statement = $db->prepare(check_sql($sql));
-	$prep_statement->execute();
-	$destinations = $prep_statement->fetchAll(PDO::FETCH_NAMED);
-	unset ($prep_statement, $sql);
+	$sql = str_replace('count(destination_uuid)', '*', $sql);
+	$sql .= order_by($order_by, $order);
+	$sql .= limit_offset($rows_per_page, $offset);
+	$database = new database;
+	$destinations = $database->select($sql, $parameters, 'all');
+	unset($parameters);
 
 //get the destination select list
 	$destination = new destinations;
@@ -186,6 +164,9 @@
 	$c = 0;
 	$row_style["0"] = "row_style0";
 	$row_style["1"] = "row_style1";
+
+//include the header
+	require_once "resources/header.php";
 
 //define the checkbox_toggle function
 	echo "<script type=\"text/javascript\">\n";
@@ -268,7 +249,7 @@
 	}
 	echo "	</td>\n";
 	echo "<tr>\n";
-	if (is_array($destinations)) {
+	if (is_array($destinations) && @sizeof($destinations) != 0) {
 		$x = 0;
 		foreach($destinations as $row) {
 			$action_name = action_name($destination_array, $row['destination_app'].':'.$row['destination_data']);
@@ -284,7 +265,7 @@
 			echo "	</td>\n";
 			if ($_GET['show'] == "all" && permission_exists('destination_all')) {
 				if (strlen($_SESSION['domains'][$row['domain_uuid']]['domain_name']) > 0) {
-					$domain = escape($_SESSION['domains'][$row['domain_uuid']]['domain_name']);
+					$domain = $_SESSION['domains'][$row['domain_uuid']]['domain_name'];
 				}
 				else {
 					$domain = $text['label-global'];

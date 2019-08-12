@@ -47,10 +47,12 @@
 	require_once "resources/header.php";
 	$document['title'] = $text['title-user_manager'];
 
+//get variables used to control the order
+	$order_by = $_GET["order_by"] != '' ? $_GET["order_by"] : 'u.username';
+	$order = $_GET["order"];
+
 //set the variables
-	$order_by = check_str($_GET["order_by"]);
-	$order = check_str($_GET["order"]);
-	$search = check_str($_REQUEST["search"]);
+	$search = $_REQUEST["search"];
 	if (strlen($search) > 0) {
 		$search = strtolower($search);
 	}
@@ -58,33 +60,32 @@
 //get the list of superadmins
 	$superadmins = superadmin_list($db);
 
-//get the user count from the database
-	$sql = "select count(*) as num_rows from view_users where 1 = 1 ";
+//common where clause
+	$sql_where = "where true ";
 	if (!(permission_exists('user_all') && $_GET['show'] == 'all')) {
-		$sql .= "and domain_uuid = '".$_SESSION['domain_uuid']."' ";
+		$sql_where .= "and u.domain_uuid = :domain_uuid ";
+		$parameters['domain_uuid'] = $_SESSION['domain_uuid'];
 	}
 	if (strlen($search) > 0) {
-		$sql .= "and (lower(username) like '%".$search."%' \n";
-		$sql .= "or lower(groups) like '%".$search."%' \n";
-		$sql .= "or lower(contact_organization) like '%".$search."%' \n";
-		$sql .= "or lower(contact_name_given) like '%".$search."%' \n";
-		$sql .= "or lower(contact_name_family) like '%".$search."%') \n";
+		$sql_where .= "and ( ";
+		$sql_where .= "lower(username) like :search ";
+		$sql_where .= "or lower(groups) like :search ";
+		$sql_where .= "or lower(contact_organization) like :search ";
+		$sql_where .= "or lower(contact_name_given) like :search ";
+		$sql_where .= "or lower(contact_name_family) like :search ";
+		$sql_where .= ") ";
+		$parameters['search'] = '%'.$search.'%';
 	}
-	$prep_statement = $db->prepare($sql);
-	if ($prep_statement) {
-		$prep_statement->execute();
-		$row = $prep_statement->fetch(PDO::FETCH_ASSOC);
-		if ($row['num_rows'] > 0) {
-			$num_rows = $row['num_rows'];
-		}
-		else {
-			$num_rows = '0';
-		}
-	}
-	unset ($prep_statement, $result, $sql);
+
+//get the user count from the database
+	$sql = "select count(*) from view_users as u ";
+	$sql .= $sql_where;
+	$database = new database;
+	$num_rows = $database->select($sql, $parameters, 'column');
+	unset($sql);
 
 //prepare for paging
-	$rows_per_page = ($_SESSION['domain']['paging']['numeric'] != '') ? $_SESSION['domain']['paging']['numeric'] : 50;
+	$rows_per_page = is_numeric($_SESSION['domain']['paging']['numeric']) ? $_SESSION['domain']['paging']['numeric'] : 50;
 	$param = "search=".escape($search);
 	if (permission_exists('user_all') && $_GET['show'] == 'all') {
 		$param .= "&show=all";
@@ -95,36 +96,14 @@
 	$offset = $rows_per_page * $page;
 
 //get the users from the database
-	$sql = "select u.domain_uuid, u.user_uuid, u.contact_uuid, u.domain_name, u.username, u.user_enabled, u.contact_organization, u.contact_name_given, u.contact_name_family, u.groups \n";
-	$sql .= "from view_users as u \n";
-	$sql .= "where 1 = 1 \n";
-	if (!(permission_exists('user_all') && $_GET['show'] == 'all')) {
-		$sql .= "and u.domain_uuid = '".$_SESSION['domain_uuid']."' \n";
-	}
-	if (strlen($search) > 0) {
-		$sql .= "and (lower(username) like '%".$search."%' \n";
-		$sql .= "or lower(groups) like '%".$search."%' \n";
-		$sql .= "or lower(contact_organization) like '%".$search."%' \n";
-		$sql .= "or lower(contact_name_given) like '%".$search."%' \n";
-		$sql .= "or lower(contact_name_family) like '%".$search."%') \n";
-	}
-	if (strlen($order_by)> 0) {
-		$sql .= "order by ".$order_by." ".$order." \n";
-	}
-	else {
-		$sql .= "order by u.username asc \n";
-	}
-	$sql .= "limit ".$rows_per_page." offset ".$offset." ";
-	$prep_statement = $db->prepare(check_sql($sql));
-	$prep_statement->execute();
-	$users = $prep_statement->fetchAll(PDO::FETCH_NAMED);
-	//if (!$users) {
-	//	echo "<pre>\n";
-	//	print_r($prep_statement->errorInfo());
-	//	echo "</pre>\n";
-	//	exit;
-	//}
-	unset ($prep_statement, $sql);
+	$sql = "select u.domain_uuid, u.user_uuid, u.contact_uuid, u.domain_name, u.username, u.user_enabled, u.contact_organization, u.contact_name_given, u.contact_name_family, u.groups ";
+	$sql .= "from view_users as u ";
+	$sql .= $sql_where;
+	$sql .= order_by($order_by, $order);
+	$sql .= limit_offset($rows_per_page, $offset);
+	$database = new database;
+	$users = $database->select($sql, $parameters, 'all');
+	unset($sql, $sql_where, $parameters);
 
 //page title and description
 	echo "<table width='100%' border='0' cellpadding='0' cellspacing='0'>\n";
@@ -190,7 +169,7 @@
 	echo "</td>\n";
 	echo "</tr>\n";
 
-	if (is_array($users)) {
+	if (is_array($users) && sizeof($users) != 0) {
 		foreach($users as $row) {
 			if (if_superadmin($superadmins, $row['user_uuid']) && !if_group("superadmin")) {
 				//hide
@@ -242,11 +221,11 @@
 				}
 				echo "	</td>\n";
 				echo "</tr>\n";
-				if ($c==0) { $c=1; } else { $c=0; }
+				$c = $c == 0 ? 1 : 0;
 			}
-		} //end foreach
-		unset($sql, $users);
-	} //end if results
+		}
+		unset($users, $row);
+	}
 
 	echo "<tr>\n";
 	echo "</table>\n";
